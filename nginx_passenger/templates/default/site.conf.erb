@@ -1,0 +1,125 @@
+<% if @cert_exists %>
+
+server {
+    listen 443 ssl;
+    ssl on;
+    server_name <%= @resource.server %>;
+
+    ssl_certificate <%= node.nginx_passenger.certs_dir %>/<%= @resource.name %>.cert;
+    ssl_certificate_key <%= node.nginx_passenger.certs_dir %>/<%= @resource.name %>.key;
+
+    access_log <%= node.nginx_passenger.log_dir %>/<%= @resource.name %>.ssl.access.log <%= @log_format %>;
+    error_log <%= node.nginx_passenger.log_dir %>/<%= @resource.name %>.ssl.error.log;
+
+    location / {
+        <% if @resource.static %>
+        root <%= @resource.dir %>
+        <% else %>
+        passenger_enabled on;
+
+        <% if @resource.ruby %>
+        passenger_ruby <%= @resource.ruby %>;
+        <% end %>
+
+        root <%= @resource.dir %>/public;
+
+        <% if @resource.env %>
+        passenger_app_env "<%= @resource.env %>";
+        <% elsif @resource.rails_env %>
+        rails_env "<%= @resource.rails_env %>";
+        <% end %>
+
+        <% if @resource.user %>
+        passenger_user "<%= @resource.user %>";
+        <% end %>
+
+        passenger_min_instances <%= @resource.min_instances || node.nginx_passenger.site_min_instances %>;
+
+        client_max_body_size <%= @resource.max_body_size || node.nginx_passenger.site_max_body_size %>;
+        <% end %>
+    }
+
+    <% if @resource.maintenance_page %>
+    if (-f <%= @resource.maintenance_check || "#{@resource.dir}/IN_MAINTENANCE_MODE" %>) {
+        return 503;
+    }
+
+    error_page 503 @maintenance;
+
+    location @maintenance {
+        root <%= @resource.dir %>/public;
+
+        if (!-f <%= @resource.dir %>/public$uri) {
+            rewrite ^(.*)$ <%= @resource.maintenance_page %> break;
+        }
+    }
+    <% end %>
+}
+
+    <% if !@resource.http && node.nginx_passenger.redirect_to_https %>
+
+    server {
+        listen 80;
+        server_name <%= @resource.server %>;
+        return 301 https://<%= @resource.server %>$request_uri;
+    }
+
+    <% end %>
+
+<% end %>
+
+<% if !@cert_exists || @resource.http %>
+
+server {
+    listen 80;
+    server_name <%= @resource.server %>;
+
+    access_log <%= node.nginx_passenger.log_dir %>/<%= @resource.name %>.access.log <%= @log_format %>;
+    error_log <%= node.nginx_passenger.log_dir %>/<%= @resource.name %>.error.log;
+
+    location / {
+        <% if @resource.static %>
+        root <%= @resource.dir %>;
+        <% else %>
+        passenger_enabled on;
+
+        <% if @resource.ruby %>
+        passenger_ruby <%= @resource.ruby %>;
+        <% end %>
+
+        root <%= @resource.dir %>/public;
+
+        <% if @resource.env %>
+        passenger_app_env "<%= @resource.env %>";
+        <% elsif @resource.rails_env %>
+        rails_env "<%= @resource.rails_env %>";
+        <% end %>
+
+        <% if @resource.user %>
+        passenger_user "<%= @resource.user %>";
+        <% end %>
+
+        passenger_min_instances <%= @resource.min_instances || node.nginx_passenger.site_min_instances %>;
+
+        client_max_body_size <%= @resource.max_body_size || node.nginx_passenger.site_max_body_size %>;
+        <% end %>
+    }
+
+    <% if @resource.maintenance_page %>
+    if (-f <%= @resource.maintenance_check || "#{@resource.dir}/IN_MAINTENANCE_MODE" %>) {
+        return 503;
+    }
+
+    error_page 503 @maintenance;
+
+    location @maintenance {
+        root <%= @resource.dir %>/public;
+
+        if (!-f <%= @resource.dir %>/public$uri) {
+            rewrite ^(.*)$ <%= @resource.maintenance_page %> break;
+        }
+    }
+    <% end %>
+}
+
+<% end %>

@@ -1,0 +1,34 @@
+---
+driver:
+  name: vagrant
+  require_chef_omnibus: true
+
+provisioner: chef_zero
+
+platforms:
+- name: ubuntu-12.04
+  driver_config:
+    image:            ubuntu-upstart
+    disable_upstart:  false
+    run_command:      /sbin/init
+
+suites:
+- name: default
+  run_list:
+    - "recipe[nginx_passenger]"
+    - "recipe[nginx_passenger-test]"
+  attributes:
+    nginx_passenger:
+      sites_dir:      "/etc/nginx/sites"
+      log_dir:        "/var/log/nginx-sites"
+      catch_default:  true
+- name: passenger4
+  run_list:
+    - "recipe[nginx_passenger]"
+    - "recipe[nginx_passenger-test]"
+  attributes:
+    nginx_passenger:
+      use_passenger_4:  true
+      sites_dir:        "/etc/nginx/sites"
+      log_dir:          "/var/log/nginx-sites"
+      catch_default:    true
